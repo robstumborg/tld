@@ -1,0 +1,66 @@
+import sys
+import requests
+import json
+import shutil
+
+
+def hash32(name):
+    n = 42
+    for char in name:
+        n = ((n << 5) - n + ord(char)) & 0xffffffff
+    if n & 0x80000000:
+        n = -((~n & 0xffffffff) + 1)
+    return n
+
+
+def fetch_data(url, headers):
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.text.split("\n")
+    else:
+        print(f"error: {response.status_code}")
+        return []
+
+
+domain = sys.argv[1]
+hash_value = hash32(domain)
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/113.0",
+    "Accept": "application/x-ndjson",
+}
+
+base_api = "https://instantdomainsearch.com/services"
+
+urls = [
+    f"{base_api}/dns-names/{domain}?hash={hash_value}&limit=1000&tldTags=all",
+    f"{base_api}/services/zone-names/{domain}?hash={hash_value}&limit=1000&tldTags=all",
+]
+
+lines = []
+for url in urls:
+    lines.extend(fetch_data(url, headers))
+
+data = [json.loads(line) for line in lines if line and "tld" in json.loads(line)]
+data.sort(key=lambda item: item["tld"])
+
+tld_len = max(len(item["tld"]) for item in data)
+domain_len = len(domain)
+string_len = domain_len + tld_len
+
+padding = string_len + 20
+domains_per_line = shutil.get_terminal_size().columns // padding
+
+out = ""
+for index, tld in enumerate(data, start=1):
+    if "isRegistered" not in tld or "tld" not in tld:
+        continue
+
+    status = "\033[1;31m[☓]" if tld["isRegistered"] else "\033[1;32m[✓]"
+    string = f"{status} {domain}.{tld['tld']}\033[0m"
+    out += string.ljust(padding)
+
+    if index % domains_per_line == 0:
+        print(out.strip())
+        out = ""
+
