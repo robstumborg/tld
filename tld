@@ -38,7 +38,7 @@ base_api = "https://instantdomainsearch.com/services"
 
 urls = [
     f"{base_api}/dns-names/{domain}?hash={hash_value}&limit=1000&tldTags=all",
-    f"{base_api}/services/zone-names/{domain}?hash={hash_value}&limit=1000&tldTags=all",
+    f"{base_api}/zone-names/{domain}?hash={hash_value}&limit=1000&tldTags=all",
 ]
 
 lines = []
